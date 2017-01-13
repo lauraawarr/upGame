@@ -1,0 +1,556 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Up Game</title>
+
+<script src="https://code.createjs.com/createjs-2015.11.26.min.js"></script>
+<script>var zon = true; // true for comments from zim code</script>
+<script src="https://d309knd7es5f10.cloudfront.net/zim_4.3.0.js"></script>
+
+<style>
+	body {margin:0px; padding:0px; background-color:#000;}
+</style>
+
+<script>
+
+var scaling = "fit"; // this will resize to fit inside the screen dimensions
+var width = 1000;
+var height = 800;
+var color = "#111";
+var frame = new zim.Frame(scaling, width, height, '#6dc5ed');
+frame.on("ready", function() {
+	zog("ready from ZIM Frame");
+
+	var stage = frame.stage;
+	var stageW = frame.width;
+	var stageH = frame.height;
+	createjs.MotionGuidePlugin.install();
+
+	frame.loadAssets(['balloon2.png', 'sky.jpg', 'arrow.png','upKid.png', 'gauge180.png', 'gauge210.png', 'gauge240.png', 'gauge270.png', 'ground.png', 'bird.png', 'airplane.png', 'sky_transition.png', 'sky_gradient.png', 'space.png', 'clouds.png', 'stars.png', 'space2.png', 'add_balloon.wav', 'lose.mp3', 'high_score.mp3', 'asteroid.png', 'ufo.png', 'space_bird.png', 'background.wav', 'multimedia.png', 'speaker.png', 'start.png'], 'assets/');
+	frame.on("complete", function(){
+
+		// localStorage.clear();
+		var backgroundMusic = createjs.Sound.play('assets/background.wav', {loop: -2, volume: 0.3});
+
+/////// Defines highscore from local storage
+		if (localStorage && localStorage.highScore) {
+			highScore = JSON.parse(localStorage.highScore);
+		} else {
+			highScore = 0;
+		}; //end if localStorage
+
+/////// Defines background images
+		var blue = new zim.Rectangle(stageW, stageH, '#6dc5ed');
+		stage.addChild(blue);
+
+		var sky_gradient = frame.asset('sky_gradient.png');
+		sky_gradient.scale(2.5);
+		sky_gradient.y = -2*stageH;
+		stage.addChild(sky_gradient);
+
+		var background = new zim.Container();
+		stage.addChild(background);
+
+		var clouds = frame.asset('clouds.png');
+		clouds.scale(2.5);
+		background.addChild(clouds);
+
+		var stars = frame.asset('stars.png');
+		stars.scale(2.5);
+		background.addChild(stars);
+		stars.alpha = 0;
+
+/////// Defines scroller
+		var scroller = new zim.Scroller({
+	    	backing: background, 
+	    	speed: 0, 
+	    	gapFix: 0, 
+	    	direction: -1, 
+	    	horizontal: false
+	    });
+
+/////// Defines assets that will be animated in mid ground
+		var ground = frame.asset('ground.png');
+		ground.scaleX=2;
+		ground.centerReg(stage);
+		ground.y += 250;
+
+	    var bird = frame.asset('bird.png');
+		bird.scale(0.05);
+		bird.setBounds(0,0,100,100);
+		stage.addChild(bird);
+		//bird.y -= stageH*3;
+		bird.x = stageW + bird.width;
+		bird.y = newY = stageH/2*Math.random();
+
+		var airplane = frame.asset('airplane.png');
+		airplane.scale(0.3);
+		airplane.setBounds(0,0,500,100);
+		stage.addChild(airplane);
+		airplane.x = -airplane.width;
+		airplane.y = stageH/2*Math.random();
+
+		var space_bird = frame.asset('space_bird.png');
+		space_bird.scale(0.05);
+		space_bird.setBounds(0,0,100,100);
+		stage.addChild(space_bird);
+		space_bird.x = stageW + space_bird.width;
+		space_bird.y = newY = stageH/2*Math.random();
+
+		var asteroid = frame.asset('asteroid.png');
+		asteroid.scale(0.3);
+		asteroid.setBounds(0,0,500,100);
+		stage.addChild(asteroid);
+		asteroid.x = stageW + asteroid.width;
+		asteroid.y = -asteroid.height; 
+
+		var ufo = frame.asset('ufo.png');
+		ufo.scale(0.3);
+		ufo.setBounds(0,0,500,100);
+		stage.addChild(ufo);
+		ufo.x = stageW + ufo.width;
+		ufo.y = stageH;
+
+//// Creates guage container, always under arrow, places image within it
+	    var gauge = new zim.Container();
+	    stage.addChild(gauge);
+	    gauge.setBounds(stageW,stageH);
+
+		var wheel = frame.asset('gauge180.png');
+		wheel.centerReg(gauge);
+		wheel.x = wheel.width/2 + 50;
+		wheel.y = stageH - wheel.height/2 - 50;
+
+///// Creates background music toggle
+		var mute = new zim.Container();
+		stage.addChild(mute);
+
+		var mutebutton = new zim.Rectangle(100,100);
+		mute.addChild(mutebutton);
+		mutebutton.alpha = 0.01;
+		mutebutton.x = stageW - mutebutton.width - 30;
+		mutebutton.y = stageH - mutebutton.height - 30;
+
+		var mutefaceOn = frame.asset('multimedia.png');	
+		mute.addChild(mutefaceOn);
+
+		var mutefaceOff = frame.asset('speaker.png');	
+		mute.addChild(mutefaceOff);
+		mutefaceOff.alpha = 0;
+		
+		var sound = "playing";
+		mutefaceOn.alpha = 0.3;
+		mutefaceOn.x = mutefaceOff.x = stageW - mutefaceOn.width - 30;
+		mutefaceOn.y = mutefaceOff.y = stageH - mutefaceOn.height - 30;
+
+		// Toggles background music
+		mutebutton.addEventListener('click', function(){
+			if (sound == "playing"){
+				mutefaceOn.alpha = 0;
+				mutefaceOff.alpha = 0.3;
+				backgroundMusic.muted = true;
+				sound = "muted";
+				zog("muted");
+			} else {
+				mutefaceOn.alpha = 0.3;
+				mutefaceOff.alpha = 0;
+				backgroundMusic.muted = false;
+				sound = "playing";
+				zog("playing");
+			}; //end if/else
+			stage.update();
+		}); //end mute click
+
+		// Raised opacity of mute toggle on mouse over
+		mutebutton.addEventListener('mouseover', function(){
+			if (sound == "muted"){
+				mutefaceOff.alpha = 0.8;
+				zog("hello (playing)");
+			} else {
+				mutefaceOn.alpha = 0.8;
+				zog("hello (not playing)");
+			}; //end if/else
+			stage.update();
+		}); //end mute click
+
+		// Reduces opacity of mute toggle on mouse out
+		mutebutton.addEventListener('mouseout', function(){
+			if (sound == "muted"){
+				mutefaceOff.alpha = 0.3;
+			} else {
+				mutefaceOn.alpha = 0.3;
+			}; //end if/else
+			stage.update();
+		}); //end mute click
+
+///// Creates container that will spin, adds arrow to it
+		var spinner = new zim.Container();
+		spinner.setBounds(0,0,200,200);
+		spinner.centerReg(stage);
+		spinner.x = wheel.width/2 + 50;
+		spinner.y = stageH - wheel.height/2 - 50;
+
+		var arrow = frame.asset('arrow.png');
+		arrow.centerReg(spinner);
+		arrow.y += 50;
+		arrow.x += 45;
+		arrow.scale(0.25);
+		arrow.y -= 50;
+
+		//defines 'danger zone', values less than this will drop player
+		var zone = 180;
+
+////// Defines ballons container and individual balloon
+
+		var balloons = new zim.Container();
+		balloons.setBounds(0,0,500,250);
+		balloons.centerReg(stage);
+		balloons.x += 50;
+		balloons.y -= 120;
+
+		var balloon = frame.asset('balloon2.png');
+		balloon.setBounds(0,0,500,800);
+		balloon.scale(0.2);
+		balloon.regX += 500;
+		balloon.regY += 800;
+		balloon.center(balloons);
+		balloon.x -= 100;
+		balloon.y -= 100;
+		
+		//newBalloon will be used when cloning balloon
+		var newBalloon;
+		var newX, newY;
+		var balloonCount = 0;
+
+/////// Defines Kid 
+		var kid = frame.asset('upKid.png');
+	    kid.centerReg(stage);
+	    kid.scale(0.5);
+	    kid.y += 80;
+	    kid.regX -= 100;
+	    kid.regY -=125;
+	    var hand = kid.localToGlobal(kid.regX, kid.regY);
+
+	    var startX = kid.x;
+		var startY = kid.y;
+
+/////// Spins & stops arrow on spacebar press	
+		window.addEventListener('keydown', spin);
+		spinning = false;
+
+		function spin(ev){
+			if (ev.keyCode == 32){
+
+				// stops spinning if currently spinning
+				if (spinning){
+					spinning = false;
+					zim.Ticker.remove(spinAnimate, stage);
+
+					//checks angle of rotation, reacts if it's in specified zone
+					if(spinner.rotation%360 > zone){
+						//frame.asset('add_balloon.wav').play();
+
+						//increases background speed
+						scroller.speed += 0.1;
+						//increases arrow spinSpeed
+						spinSpeed += 0.25;
+
+						// Creates new balloon
+						newBalloon = balloon.clone();
+						newBalloon.shape = new zim.Shape();
+						newBalloon.center(balloons);
+				
+						newBalloon.scale(0);
+						newBalloon.newX = balloons.width*Math.random();
+						newBalloon.newY = balloons.height*Math.random();
+						newBalloon.animate({
+							obj: {scale: 0.2, x: newBalloon.newX, y: newBalloon.newY},
+							time: 1500,
+							ease: 'elasticOut'
+						})
+
+						balloonCount ++;
+						//animates ground away on first press
+						if (balloonCount == 1){
+							ground.animate({
+								obj:{ y: stageH + 300},
+								time: 10000
+							});
+
+							setTimeout(function(){
+								// triggers bird animations 5 seconds after game has started
+								bird.animate({
+									obj: {x: -bird.width },
+									time: 5000,
+									ease: 'none',
+									loop: true,
+									loopWait: 2000 + 5000*Math.random(),
+									loopCount: 2,
+									loopCall: function(){
+										bird.y = stageH/2*Math.random(); 
+									}
+								});
+
+							}, 5000);
+							
+						}
+						// triggers various events in increments of 5 balloons
+						switch(Math.floor(balloonCount/5)){
+							case 1: updateGauge(210);
+								break;
+							case 2: updateGauge(240);
+								break;
+							case 3: updateGauge(270);
+								break;
+							case 4: 
+								airplane.animate({
+									obj: {x: stageW + airplane.width },
+									time: 4000,
+									ease: 'none'
+								});
+								break;
+							case 5: 
+									sky_gradient.animate({
+										obj: {y: 2*stageH},
+										time: 8000
+									});
+									setTimeout( function(){
+										blue.color = '#270b57';
+										scroller.backing1.getChildAt(0).animate({
+											obj: {alpha: 0},
+											time: 1000
+										});
+										scroller.backing2.getChildAt(0).animate({
+											obj: {alpha: 0},
+											time: 1000
+										});
+										scroller.backing1.getChildAt(1).animate({
+											obj: {alpha: 1},
+											time: 2000
+										});
+										scroller.backing2.getChildAt(1).animate({
+											obj: {alpha: 1},
+											time: 2000
+										});
+									},  4000);
+
+								break;
+							case 6: 
+							setTimeout(function(){
+								space_bird.animate({
+									obj: {x: -2*space_bird.width },
+									time: 4000,
+									ease: 'none'
+								});
+							}, 1000);
+								break;
+							case 7: asteroid.animate({
+										obj:{x: -asteroid.width, y: stageH + asteroid.height},
+										time: 1500,
+										ease: 'none'
+									});
+								break;
+							case 8: 
+								// animates ufo along custom path
+								createjs.Tween.get(ufo).to({guide:{ path:[-ufo.width,0, 100,200,300,200, 200,500,stageW,stageH] }},4000);
+							
+								break;
+
+							default: break;
+						}; //end switch case
+
+						stage.update();
+
+					 // Case when arrow lands in danger zone (game over)
+					} else {
+						//switches movement downwards
+						frame.asset('lose.mp3').play();
+						scroller.speed = 1;
+						scroller.direction = 1;
+						// kid animates downwards
+						kid.animate({
+							obj:{y: stageH + kid.height},
+							time: 500
+						}); //end kid animate
+						balloons.animate({
+							obj: {y: -(1.5)*stageH},
+							time: 1000					
+						}); //end balloons animate
+
+						//floats point where balloon strings meet off the stage
+						zim.Ticker.add(function(){
+							hand.y -= 10;
+						}, stage);
+
+						// wait 1 second to show 'new game' window and score
+						setTimeout(newGame, 1000);
+						yourScoreLabel.text = 'Your Score: ' + balloonCount;
+
+						// if score is higher than highscore, update and display
+						if ((localStorage)&&(balloonCount > highScore)) {
+							highScore = balloonCount;
+							highScoreLabel.text = 'NEW HIGH SCORE!';
+							highScoreLabel.x = stageW/2 - 250;
+							frame.asset('high_score.mp3').play();
+							localStorage.highScore = JSON.stringify(highScore);
+						}
+					}
+				// If not spinning, start spinning animation
+				} else {
+					spinning = true;
+					zim.Ticker.add(spinAnimate, stage);
+				}; //end if/else
+
+			}; //end if spacebar
+		}; //end spin
+
+////////// Defines New Game button 
+		var popup = new zim.Container();
+		popup.setBounds(0,0,600,600);
+		popup.centerReg(stage);
+
+		var backing = new zim.Rectangle({
+			width: 400,
+			height: 400, 
+			fill: '#ffb543',
+			corner: 10
+		});
+		backing.centerReg(popup);
+		backing.alpha = 0.9;
+
+		var yourScoreLabel = new zim.Label({
+			text: 'Your Score: ' + balloonCount,
+			color: '#fff'
+		});
+		yourScoreLabel.centerReg(popup);
+		yourScoreLabel.y -= 120;
+
+		var highScoreLabel = new zim.Label({
+			text: 'High Score: ' + highScore,
+			color: '#fff'
+		});
+		highScoreLabel.centerReg(popup);
+		highScoreLabel.y -= 40;
+
+		var restartLabel = new zim.Label({
+			text: 'NEW GAME',
+			color: '#fff'
+		});
+
+		var restart = new zim.Button({
+			label: restartLabel,
+			width: 300,
+			height: 100,
+			color: '#ffc66e',
+			corner: 12
+		}); //end button
+		restart.centerReg(popup);
+		restart.y += 100;
+		restart.addEventListener('click', function(){
+			//reloads page
+			window.location.href = 'finalSubmission.html';
+		}); //end addEventListener
+		popup.scale(0);
+
+/////// Defines balloon strings
+		var strings = new zim.Shape();
+		strings.alpha = 0.4;
+
+		// draws strings from hand to balloon tie in ticker
+		stage.addChildAt(strings, 5);
+		var drawStrings = zim.Ticker.add(function(){
+
+			var g = strings.graphics;
+			g.c().s('#000');
+
+			zim.loop(balloons, function(balloon){
+				var newBalloonTie = balloons.localToGlobal(balloon.x, balloon.y);
+				g.moveTo(hand.x,hand.y).lineTo(newBalloonTie.x, newBalloonTie.y);
+			});
+
+		}, stage);
+
+//////// Defines instruction popup
+
+		var instructWindow = new zim.Container();
+		instructWindow.setBounds(0,0,500,500);
+		instructWindow.centerReg(stage);
+
+		var instruct = frame.asset('start.png');
+		instruct.centerReg(instructWindow);
+
+		var ready = new zim.Button({
+			label: 'READY!',
+			width: 300,
+			height: 80,
+			color: '#ffc66e',
+			corner: 12
+		}); //end button
+		ready.centerReg(instructWindow);
+		ready.y += 225;
+
+		instructWindow.x = -3*stageW/2;
+
+		instructWindow.animate({
+				obj: {x: stageW/2},
+				time: 800,
+				ease: 'backOut'
+			}); //end instruct animate
+
+		ready.addEventListener('click', function(){
+			instructWindow.animate({
+				obj: {x: 3*stageW/2},
+				time: 800,
+				ease: 'backIn'
+			}); //end instruct animate
+		}); //end ready event
+
+
+
+//////// Functions /////////////
+		
+		// animates new game popup
+		function newGame(){
+			popup.animate({
+				obj:{scale:1},
+				time: 500
+			});
+		};
+
+		// animates spinner rotation
+		var spinSpeed = 5;
+		function spinAnimate(){
+			spinner.rotation += spinSpeed;
+		};
+
+		// replaces gauge image and updates danger zone to specified num (in degrees)
+		function updateGauge(num){
+			zone = num;
+
+			stage.removeChild(wheel);
+			var newGauge = 'gauge' + num + '.png';
+
+			var wheel = frame.asset(newGauge);
+			wheel.centerReg(gauge);
+			wheel.x = wheel.width/2 + 50;
+			wheel.y = stageH - wheel.height/2 - 50;
+		}; //end updateGauge
+
+
+		stage.update();
+
+	}); //end complete
+
+}); // end of ready
+
+</script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimal-ui" />
+
+</head>
+
+<body>
+<!-- canvas with id="myCanvas" is made by zim Frame -->
+</body>
+</html>
